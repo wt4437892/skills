@@ -48,7 +48,16 @@ Automatically categorize the knowledge point into one of these tech stack catego
 - `最佳实践` (Best Practices): Design patterns, coding standards
 - `进阶主题` (Advanced Topics): Advanced concepts, performance optimization
 
-### 4. Create the Note
+### 4. Scan Existing Notes
+
+Before creating the note, scan the domain directory to identify existing notes:
+
+1. Use Glob tool to find all `.md` files in the domain directory
+2. Read each note to verify it has actual content (not empty)
+3. Build a list of available notes that can be referenced
+4. This list will be used in the "相关笔记" section to only link existing notes
+
+### 5. Create the Note
 
 Use the template from `assets/note_template.md` with these replacements:
 
@@ -67,9 +76,14 @@ Fill in each section:
    - Common scenarios
    - Important considerations
 4. **参考资料 (References)**: List all source URLs
-5. **相关笔记 (Related Notes)**: Suggest related topics using `[[topic]]` syntax
+5. **相关笔记 (Related Notes)**: Link to existing related notes
+   - **CRITICAL**: Only link to notes that actually exist in the knowledge base
+   - Before creating links, scan the domain directory to find existing notes
+   - Check that linked notes have actual content (not empty files)
+   - Use `[[note-title]]` syntax only for verified existing notes
+   - If no related notes exist yet, leave this section empty or add a comment
 
-### 5. Save to Appropriate Directory
+### 6. Save to Appropriate Directory
 
 Create the directory structure if it doesn't exist:
 
@@ -92,6 +106,7 @@ See `references/guidelines.md` for detailed structure guidelines and `references
 3. **Structured Format**: Follow the template structure consistently.
 4. **Obsidian Features**: Use YAML frontmatter, tags, and double links `[[]]`.
 5. **Automatic Organization**: Determine category and create directory structure automatically.
+6. **Link Only Existing Notes**: In the "相关笔记" section, only create links to notes that actually exist and have content. Never link to empty or non-existent notes.
 
 ## Example Usage
 

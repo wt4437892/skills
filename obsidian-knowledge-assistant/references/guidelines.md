@@ -31,7 +31,11 @@ All notes should follow this structure:
 
 6. **相关笔记 (Related Notes)**: Obsidian double links
    - Link to related concepts using [[note-name]] syntax
-   - Build knowledge graph connections
+   - **IMPORTANT**: Only link to notes that actually exist in the knowledge base
+   - Scan the domain directory first to identify existing notes
+   - Verify that linked notes have actual content (not empty files)
+   - If no related notes exist, leave this section empty or add a placeholder comment
+   - Build knowledge graph connections based on real, existing content
 
 ## Directory Organization
 
@@ -59,6 +63,20 @@ When creating notes:
 3. **Never fabricate** information or examples
 4. **Cite sources** in the References section
 5. **Use official documentation** as primary source when available
+
+## Related Notes Workflow
+
+When creating the "相关笔记" section:
+
+1. **Scan existing notes**: Use Glob tool to find all `.md` files in the domain directory
+2. **Verify content**: Read each potential related note to ensure it has actual content
+3. **Identify relationships**: Determine which existing notes are conceptually related
+4. **Create links**: Only add `[[note-title]]` links for verified existing notes
+5. **Empty section handling**: If no related notes exist, either:
+   - Leave the section empty with a comment like `<!-- 暂无相关笔记 -->`
+   - Or omit specific links and add a note: "相关笔记将在创建后添加"
+
+This ensures the knowledge graph only contains valid connections to real content.
 
 ## Example Note
 
