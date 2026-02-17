@@ -39,20 +39,27 @@ All notes should follow this structure:
 
 ## Directory Organization
 
-Notes should be organized by tech stack:
+Notes are organized directly in the project root (the project name indicates the domain):
 
+**For third-party libraries**:
 ```
-domain-name/
+{library-name}/
+└── {note-title}.md
+```
+Example: `pandas/基本运算.md`, `requests/HTTP请求.md`
+
+**For other categories**:
+```
 ├── 基础语法/        (Basic Syntax)
 ├── 标准库/          (Standard Library)
-├── 第三方库/        (Third-party Libraries)
 ├── 框架/            (Frameworks)
 ├── 工具/            (Tools)
 ├── 最佳实践/        (Best Practices)
 └── 进阶主题/        (Advanced Topics)
 ```
+Example: `基础语法/装饰器.md`, `标准库/os模块.md`
 
-The assistant should automatically determine the appropriate category based on the knowledge point.
+The assistant should automatically determine the appropriate category and directory structure based on the knowledge point.
 
 ## Evidence-Based Research
 

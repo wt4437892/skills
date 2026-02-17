@@ -14,9 +14,17 @@ Domain-specific note assistant that researches knowledge points and creates stru
 - **Domain**: Determined by the current project/directory name
   - Example: Project named "python" → Python domain notes
   - Example: Project named "javascript" → JavaScript domain notes
+  - **IMPORTANT**: All user-requested knowledge points are within this domain context
+
 - **Knowledge Point**: Extract from user's request
-  - "帮我整理Python装饰器的笔记" → Knowledge point: "Python装饰器"
-  - "什么是React Hooks？" → Knowledge point: "React Hooks"
+  - User's knowledge points are always within the current domain
+  - Example in "python" project:
+    - "帮我整理装饰器的笔记" → Knowledge point: "Python装饰器" (Python domain)
+    - "pandas基本运算" → Knowledge point: "pandas基本运算" (Python third-party library)
+    - "什么是列表推导式？" → Knowledge point: "列表推导式" (Python basic syntax)
+  - Example in "javascript" project:
+    - "什么是Promise？" → Knowledge point: "Promise" (JavaScript domain)
+    - "React Hooks" → Knowledge point: "React Hooks" (JavaScript framework)
 
 ### 2. Research the Knowledge Point
 
@@ -38,15 +46,28 @@ Domain-specific note assistant that researches knowledge points and creates stru
 
 ### 3. Determine Category
 
-Automatically categorize the knowledge point into one of these tech stack categories:
+Automatically categorize the knowledge point into one of these tech stack categories based on its nature:
 
 - `基础语法` (Basic Syntax): Language fundamentals, syntax features
+  - Example: Python装饰器, 列表推导式, async/await
 - `标准库` (Standard Library): Built-in modules and functions
-- `第三方库` (Third-party Libraries): External packages
+  - Example: os模块, datetime, json
+- `第三方库` (Third-party Libraries): External packages installed via package managers
+  - Example: pandas, numpy, requests, axios
 - `框架` (Frameworks): Web frameworks, testing frameworks, etc.
+  - Example: Django, Flask, React, Vue
 - `工具` (Tools): Development tools, CLI tools
+  - Example: pip, npm, webpack, pytest
 - `最佳实践` (Best Practices): Design patterns, coding standards
+  - Example: 设计模式, 代码规范, 错误处理
 - `进阶主题` (Advanced Topics): Advanced concepts, performance optimization
+  - Example: 性能优化, 内存管理, 并发编程
+
+**Category Selection Logic**:
+1. Research the knowledge point to understand its nature
+2. Identify whether it's a language feature, library, framework, or concept
+3. Select the most appropriate category from the list above
+4. Example: "pandas基本运算" → pandas is a third-party library → Category: `第三方库`
 
 ### 4. Scan Existing Notes
 
@@ -85,15 +106,21 @@ Fill in each section:
 
 ### 6. Save to Appropriate Directory
 
-Create the directory structure if it doesn't exist:
+Create the directory structure directly in the project root (no need to create a domain directory since the project name already indicates the domain):
 
+**For third-party libraries** (第三方库):
 ```
-{domain}/
-└── {category}/
-    └── {note-title}.md
+{library-name}/
+└── {note-title}.md
 ```
+Example: `pandas/基本运算.md`, `numpy/数组操作.md`
 
-Example: `python/基础语法/Python装饰器.md`
+**For other categories**:
+```
+{category}/
+└── {note-title}.md
+```
+Example: `基础语法/装饰器.md`, `标准库/os模块.md`, `框架/Django路由.md`
 
 ## Note Structure
 
@@ -110,20 +137,29 @@ See `references/guidelines.md` for detailed structure guidelines and `references
 
 ## Example Usage
 
-**User**: "帮我整理Python装饰器的笔记"
+**Example 1**: In "python" project, user says "帮我整理装饰器的笔记"
 
 **Process**:
 1. Domain: "python" (from project name)
-2. Knowledge point: "Python装饰器"
+2. Knowledge point: "装饰器" (within Python domain)
 3. Research using web search
-4. Category: "基础语法"
-5. Create note at: `python/基础语法/Python装饰器.md`
+4. Category: "基础语法" (language feature)
+5. Create note at: `基础语法/装饰器.md`
 
-**User**: "什么是React Hooks？"
+**Example 2**: In "python" project, user says "pandas基本运算"
 
 **Process**:
-1. Domain: "react" or "javascript" (from project name)
-2. Knowledge point: "React Hooks"
+1. Domain: "python" (from project name)
+2. Knowledge point: "pandas基本运算" (pandas is a third-party library)
 3. Research using web search
-4. Category: "框架"
-5. Create note at: `react/框架/React Hooks.md`
+4. Category: "第三方库" (external package)
+5. Create note at: `pandas/基本运算.md` (use library name as directory)
+
+**Example 3**: In "javascript" project, user says "什么是Promise？"
+
+**Process**:
+1. Domain: "javascript" (from project name)
+2. Knowledge point: "Promise" (within JavaScript domain)
+3. Research using web search
+4. Category: "基础语法" (language feature)
+5. Create note at: `基础语法/Promise.md`
