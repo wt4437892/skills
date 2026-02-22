@@ -69,14 +69,20 @@ Automatically categorize the knowledge point into one of these tech stack catego
 3. Select the most appropriate category from the list above
 4. Example: "pandas基本运算" → pandas is a third-party library → Category: `第三方库`
 
-### 4. Scan Existing Notes
+### 4. Scan Existing Notes (Optimized)
 
-Before creating the note, scan the domain directory to identify existing notes:
+**IMPORTANT**: To prevent performance issues, use a limited and targeted approach:
 
-1. Use Glob tool to find all `.md` files in the domain directory
-2. Read each note to verify it has actual content (not empty)
-3. Build a list of available notes that can be referenced
-4. This list will be used in the "相关笔记" section to only link existing notes
+1. **Limit scope**: Only scan the current category directory (e.g., if creating a note in `基础语法`, only scan `基础语法/*.md`)
+2. **Set maximum**: Scan at most 20 files to prevent system overload
+3. **Quick validation**: Use Glob to find files, check file existence only (don't read content)
+4. **Smart filtering**: Prioritize files with related keywords in their names
+
+**Implementation**:
+- Use Glob with pattern: `{category}/*.md` (not `**/*.md`)
+- Limit results to first 20 files
+- For third-party libraries, scan only within the same library directory
+- Build a simple list of filenames for potential links
 
 ### 5. Create the Note
 
@@ -99,10 +105,10 @@ Fill in each section:
 4. **参考资料 (References)**: List all source URLs
 5. **相关笔记 (Related Notes)**: Link to existing related notes
    - **CRITICAL**: Only link to notes that actually exist in the knowledge base
-   - Before creating links, scan the domain directory to find existing notes
-   - Check that linked notes have actual content (not empty files)
+   - Scan only the current category directory (limited to 20 files max)
+   - Use filename-based matching to identify related notes
    - Use `[[note-title]]` syntax only for verified existing notes
-   - If no related notes exist yet, leave this section empty or add a comment
+   - If no related notes found, leave this section empty or add a comment
 
 ### 6. Save to Appropriate Directory
 
@@ -133,7 +139,8 @@ See `references/guidelines.md` for detailed structure guidelines and `references
 3. **Structured Format**: Follow the template structure consistently.
 4. **Obsidian Features**: Use YAML frontmatter, tags, and double links `[[]]`.
 5. **Automatic Organization**: Determine category and create directory structure automatically.
-6. **Link Only Existing Notes**: In the "相关笔记" section, only create links to notes that actually exist and have content. Never link to empty or non-existent notes.
+6. **Link Only Existing Notes**: In the "相关笔记" section, only create links to notes that actually exist. Use limited scanning (max 20 files in current category) to prevent performance issues.
+7. **Performance Optimization**: Limit file scanning to current category directory only, never scan entire project to prevent system overload.
 
 ## Example Usage
 
