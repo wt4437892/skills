@@ -69,20 +69,44 @@ Automatically categorize the knowledge point into one of these tech stack catego
 3. Select the most appropriate category from the list above
 4. Example: "pandas基本运算" → pandas is a third-party library → Category: `第三方库`
 
-### 4. Scan Existing Notes (Optimized)
+### 4. Scan and Filter Related Notes
 
-**IMPORTANT**: To prevent performance issues, use a limited and targeted approach:
+**IMPORTANT**: Only link notes that both EXIST and are genuinely RELATED to the current knowledge point.
 
-1. **Limit scope**: Only scan the current category directory (e.g., if creating a note in `基础语法`, only scan `基础语法/*.md`)
+**Step 1: Scan existing notes (limited scope)**
+1. **Limit scope**: Only scan the current category directory (e.g., `基础语法/*.md`)
 2. **Set maximum**: Scan at most 20 files to prevent system overload
-3. **Quick validation**: Use Glob to find files, check file existence only (don't read content)
-4. **Smart filtering**: Prioritize files with related keywords in their names
+3. **Use Glob**: Pattern `{category}/*.md` (not `**/*.md`)
+4. **Build existing notes list**: Record all found note filenames
 
-**Implementation**:
-- Use Glob with pattern: `{category}/*.md` (not `**/*.md`)
-- Limit results to first 20 files
-- For third-party libraries, scan only within the same library directory
-- Build a simple list of filenames for potential links
+**Step 2: Determine relevance (CRITICAL)**
+
+From the existing notes found in Step 1, a note should be linked ONLY if it meets one or more of these criteria:
+
+1. **Direct dependency**: The current topic directly uses or depends on the other topic
+   - Example: "装饰器" is related to "闭包" (decorators use closures)
+   - Example: "async/await" is related to "Promise" (async/await is built on Promise)
+
+2. **Same concept family**: Topics belong to the same conceptual group
+   - Example: "列表推导式" and "字典推导式" (both are comprehensions)
+   - Example: "map()" and "filter()" (both are functional programming tools)
+
+3. **Prerequisite knowledge**: One topic is a prerequisite for understanding the other
+   - Example: "函数" is prerequisite for "装饰器"
+   - Example: "类" is prerequisite for "继承"
+
+4. **Common use together**: Topics are frequently used together in practice
+   - Example: "pandas DataFrame" and "pandas Series"
+   - Example: "useState" and "useEffect" in React
+
+**NOT related** (do not link):
+- Topics that merely exist in the same category but have no conceptual connection
+- Topics that share only superficial keyword similarity
+- Example: "字符串格式化" is NOT related to "装饰器" (both are Python basics, but unrelated concepts)
+
+**Final check**: Before adding any `[[link]]`, verify:
+1. ✅ The note file exists (found in Step 1)
+2. ✅ The note is genuinely related (meets criteria in Step 2)
 
 ### 5. Create the Note
 
@@ -103,12 +127,12 @@ Fill in each section:
    - Common scenarios
    - Important considerations
 4. **参考资料 (References)**: List all source URLs
-5. **相关笔记 (Related Notes)**: Link to existing related notes
-   - **CRITICAL**: Only link to notes that actually exist in the knowledge base
-   - Scan only the current category directory (limited to 20 files max)
-   - Use filename-based matching to identify related notes
-   - Use `[[note-title]]` syntax only for verified existing notes
-   - If no related notes found, leave this section empty or add a comment
+5. **相关笔记 (Related Notes)**: Link to genuinely related existing notes
+   - **CRITICAL**: Only link notes that have actual conceptual relevance (see Step 4 criteria)
+   - Do NOT link notes just because they exist in the same category
+   - Verify both existence AND relevance before adding a link
+   - Use `[[note-title]]` syntax only for verified related notes
+   - If no genuinely related notes found, leave this section empty
 
 ### 6. Save to Appropriate Directory
 
@@ -139,7 +163,7 @@ See `references/guidelines.md` for detailed structure guidelines and `references
 3. **Structured Format**: Follow the template structure consistently.
 4. **Obsidian Features**: Use YAML frontmatter, tags, and double links `[[]]`.
 5. **Automatic Organization**: Determine category and create directory structure automatically.
-6. **Link Only Existing Notes**: In the "相关笔记" section, only create links to notes that actually exist. Use limited scanning (max 20 files in current category) to prevent performance issues.
+6. **Link Only Related Notes**: In the "相关笔记" section, only create links to notes that are both existing AND genuinely related (direct dependency, same concept family, prerequisite, or commonly used together). Do not link unrelated notes just because they exist.
 7. **Performance Optimization**: Limit file scanning to current category directory only, never scan entire project to prevent system overload.
 
 ## Example Usage
