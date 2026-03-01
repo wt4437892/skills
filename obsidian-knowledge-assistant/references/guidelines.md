@@ -31,11 +31,11 @@ All notes should follow this structure:
 
 6. **相关笔记 (Related Notes)**: Obsidian double links
    - Link to related concepts using [[note-name]] syntax
-   - **IMPORTANT**: Only link to notes that actually exist in the knowledge base
+   - **TWO conditions required**: The note must (1) actually exist in the knowledge base AND (2) have strong relevance to the current topic
+   - **Strong relevance means**: direct technical dependency, same core concept family, essential prerequisite, or tightly coupled in practice
+   - **When in doubt, do NOT link** — default to an empty section rather than adding uncertain links
    - **Performance**: Scan only the current category directory (max 20 files) to prevent system overload
-   - Use filename-based matching to identify related notes quickly
-   - If no related notes exist, leave this section empty or add a placeholder comment
-   - Build knowledge graph connections based on real, existing content
+   - If no strongly related notes exist, leave this section empty
 
 ## Directory Organization
 
@@ -71,17 +71,20 @@ When creating notes:
 4. **Cite sources** in the References section
 5. **Use official documentation** as primary source when available
 
-## Related Notes Workflow (Optimized)
+## Related Notes Workflow (Strict Two-Condition Check)
 
 When creating the "相关笔记" section:
 
 1. **Limit scope**: Use Glob tool to find `.md` files only in the current category directory (e.g., `基础语法/*.md`)
 2. **Set maximum**: Scan at most 20 files to prevent performance issues
-3. **Quick matching**: Use filename-based matching to identify potentially related notes
-4. **Create links**: Only add `[[note-title]]` links for verified existing files
-5. **Empty section handling**: If no related notes exist, either:
-   - Leave the section empty with a comment like `<!-- 暂无相关笔记 -->`
-   - Or omit specific links and add a note: "相关笔记将在创建后添加"
+3. **Strong relevance check**: For each found note, evaluate whether it meets one of these strict criteria:
+   - Direct technical dependency (topic A is implemented using/built on topic B)
+   - Same core concept family (both are variants of the exact same concept)
+   - Essential prerequisite (must understand B before A makes sense)
+   - Tightly coupled in practice (consistently used together as a unit)
+4. **Default to no link**: If the relationship is loose, indirect, or uncertain — do not add the link
+5. **Create links**: Only add `[[note-title]]` for notes that pass BOTH conditions (exists + strongly relevant)
+6. **Empty section handling**: If no strongly related notes are found, leave the section empty
 
 **Performance Note**: Never scan the entire project directory. Always limit to current category and max 20 files to prevent system overload.
 
