@@ -1,0 +1,23 @@
+{
+  "skill_name": "java-interview-coach",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "InnoDB 为什么使用 B+ 树",
+      "expected_output": "生成包含面试问题、标准答案和 2-3 个追问的 Markdown 文件，答案精炼（100-300字），追问有深度",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "HashMap 的底层实现原理",
+      "expected_output": "生成包含面试问题、标准答案和 2-3 个追问的 Markdown 文件，涵盖数组+链表/红黑树结构、扩容机制等",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "volatile 关键字的作用",
+      "expected_output": "生成包含面试问题、标准答案和 2-3 个追问的 Markdown 文件，涵盖可见性、禁止指令重排序等核心概念",
+      "files": []
+    }
+  ]
+}
