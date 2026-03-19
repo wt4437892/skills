@@ -2,9 +2,15 @@
 
 This repository contains custom skills for Claude Code.
 
+## Skills
+
+| Skill | Description |
+|-------|-------------|
+| [leetcode-note-taker](./leetcode-note-taker/SKILL.md) | 帮助创建和记录 LeetCode 算法题笔记，生成结构化题解 |
+
 ## Structure
 
-- Each skill should be in its own directory
+- Each skill is in its own directory with a `SKILL.md` file
 - Follow the skill creation guidelines using the `skill-creator` skill
 
 ## Usage
