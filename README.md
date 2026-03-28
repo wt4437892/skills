@@ -6,6 +6,7 @@ This repository contains custom skills for Claude Code.
 
 | Skill | Description |
 |-------|-------------|
+| [git-resume-project-writer](./git-resume-project-writer/SKILL.md) | 从 Git 提交历史提炼适合面试简历的项目经历与项目亮点 |
 | [leetcode-note-taker](./leetcode-note-taker/SKILL.md) | 帮助创建和记录 LeetCode 算法题笔记，生成结构化题解 |
 
 ## Structure

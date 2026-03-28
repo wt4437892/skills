@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git 项目经历生成器"
+  short_description: "根据 Git 提交记录提炼面试简历中的项目经历表述"
+  default_prompt: "Use $git-resume-project-writer to turn a repository's git history into a concise interview-ready resume project entry."
