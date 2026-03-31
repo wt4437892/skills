@@ -9,12 +9,23 @@ description: Java高级工程师复习官，基于历史笔记做间隔复习。
 
 扮演专门负责 Java 面试复习的考官。只处理历史题复习，不出新题。
 答案与讲解优先复用历史笔记中的已有内容，不重新发明一套新答案。
-若需要调整复习策略、提示强度或排序规则，先查看 `references/effective-review.md`，按其中的学习科学原则收敛方案。
+默认走“快速路径”：
+- 优先读 `[领域]/.review-cache.json`，避免重复扫描 markdown
+- 先用 `scripts/review_index.py due` 从缓存或 `.index.md` 里筛今天到期题
+- 再用 `scripts/review_index.py show` 直达单题的 `【答案】/【讲解】`
+- 展示答案后用 `scripts/review_index.py update` 同步回写知识点文件、`.index.md` 和 `.review-cache.json`
+
+只有在以下情况才回退到手工读 markdown：
+- 脚本不存在或执行失败
+- 历史笔记格式明显偏离本 skill 约定，导致脚本无法解析
+
+若需要调整复习策略、提示强度或排序规则，才查看 `references/effective-review.md`；正常复习不要先加载该参考文件。
 
 ## 前提
 
 本 skill 依赖历史笔记文件：
 - `[领域]/.index.md`
+- `[领域]/.review-cache.json`
 - `[领域]/[知识点].md`
 
 这些笔记默认由 `java-senior-interviewer` 生成。
@@ -29,6 +40,81 @@ description: Java高级工程师复习官，基于历史笔记做间隔复习。
 - 消息队列
 - 分布式
 - AI 编程
+
+## 快速路径
+
+默认把历史笔记根目录当作 `--notes-root`。若用户在某个项目目录下复习，优先把该项目目录作为 `--notes-root`；不要把 skill 目录本身误当成笔记目录。
+
+### 1. 扫描到期题
+
+```powershell
+python java-senior-reviewer/scripts/review_index.py due --notes-root <笔记根目录> --today <yyyy-MM-dd>
+```
+
+若用户指定领域，则追加：
+
+```powershell
+--domain MySQL
+```
+
+若当前是“继续复习”且上一题领域已知，则追加：
+
+```powershell
+--last-domain Redis
+```
+
+执行要求：
+- 只消费脚本返回的 JSON；不要再全量打开所有 `.index.md` 或知识点文件
+- 先用脚本结果做排序和选题；只有用户进入具体题目后再读对应知识点文件
+- 若脚本返回 `count = 0`，直接结束并提示今天没有到期题
+
+### 2. 直达单题答案
+
+```powershell
+python java-senior-reviewer/scripts/review_index.py show --notes-root <笔记根目录> --domain <领域> --note-file <知识点文件名> --question-id <Qn>
+```
+
+执行要求：
+- 若缓存存在，脚本会直接返回答案；只有缓存缺失时才回退到知识点文件
+- 优先复用脚本返回的 `answer` 和 `explanation`
+- 只有脚本拿不到答案时，才手工打开该知识点文件核对
+
+### 3. 回写复习元数据
+
+知道分数时：
+
+```powershell
+python java-senior-reviewer/scripts/review_index.py update --notes-root <笔记根目录> --domain <领域> --note-file <知识点文件名> --question-id <Qn> --today <yyyy-MM-dd> --score <0-10>
+```
+
+用户回答“不知道”时：
+
+```powershell
+python java-senior-reviewer/scripts/review_index.py update --notes-root <笔记根目录> --domain <领域> --note-file <知识点文件名> --question-id <Qn> --today <yyyy-MM-dd> --unknown
+```
+
+执行要求：
+- 优先用脚本更新，避免手工同时改两处 markdown
+- 更新完成后，只需基于脚本返回值确认新的 `下次复习`、`上次复习`、`复习次数`
+- 不要为了确认更新结果再把整个知识点文件和 `.index.md` 各读一遍
+
+### 4. 旧笔记一次性建缓存
+
+若目标笔记目录还没有 `.review-cache.json`，先运行一次：
+
+```powershell
+python java-senior-reviewer/scripts/review_index.py reindex --notes-root <笔记根目录> --today <yyyy-MM-dd>
+```
+
+若只想处理单个领域，则追加：
+
+```powershell
+--domain MySQL
+```
+
+执行要求：
+- 这是旧数据迁移入口，正常复习时不要每题都跑
+- 建完缓存后，后续优先走缓存，不再重复全量扫描
 
 ## 复习流程
 
@@ -56,7 +142,7 @@ description: Java高级工程师复习官，基于历史笔记做间隔复习。
 
 加载流程：
 1. 读取当天日期
-2. 读取目标领域或全部领域的 `[领域]/.index.md`
+2. 优先运行 `scripts/review_index.py due`；脚本会优先读 `[领域]/.review-cache.json`，只有缓存缺失时才回退到 `[领域]/.index.md`
 3. 比较日期前，先把 `yyyy-MM-dd` 解析成真实日期对象；禁止按字符串直接比较
 4. 从索引中筛出 `下次复习 <= 当天日期` 的题；这既包括今天到期题，也包括已逾期题；`下次复习 = 未知` 的题默认视为到期
 5. 到期题按以下优先级排序：
@@ -201,9 +287,10 @@ description: Java高级工程师复习官，基于历史笔记做间隔复习。
 ```
 
 定位目标题时：
-1. 先从索引拿到知识点文件名和题目标题
-2. 再到目标知识点文件中定位对应 `## Qn：...` 题块
+1. 优先从 `scripts/review_index.py due` 的结果拿到 `note_file + question_id`
+2. 再用 `scripts/review_index.py show` 直达对应题目；若缓存存在，直接返回答案与讲解
 3. 读取并复用该题块中的 `【答案】` 和 `【讲解】`
+4. 只有脚本失效时，才手工从索引拿知识点文件名并扫描知识点文件
 
 ## 复习回答要求
 
