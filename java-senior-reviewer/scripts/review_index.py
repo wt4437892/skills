@@ -86,7 +86,7 @@ def parse_args() -> argparse.Namespace:
     due.add_argument("--today", required=True)
     due.add_argument("--domain", action="append", dest="domains")
     due.add_argument("--last-domain")
-    due.add_argument("--limit", type=int)
+    due.add_argument("--limit", type=int, default=10)
     due.add_argument("--seed", type=int, default=0)
 
     show = subparsers.add_parser("show", help="Show answer/explanation for a single question.")
@@ -223,10 +223,10 @@ def load_domain_entries(domain_dir: Path) -> list[ReviewItem]:
     return load_index_entries(domain_dir)
 
 
-def due_sort_key(entry: ReviewItem, last_domain: str | None) -> tuple[date, int, int, str, str]:
+def due_sort_key(entry: ReviewItem, last_domain: str | None) -> tuple[date, int, int, str, str, tuple[int, str]]:
     next_review = parse_date(entry.next_review) or date.min
     domain_penalty = 1 if last_domain and entry.domain == last_domain else 0
-    return (next_review, entry.review_count, domain_penalty, entry.domain, f"{entry.note_file}:{entry.question_id}")
+    return (next_review, entry.review_count, domain_penalty, entry.domain, entry.note_file, question_sort_key(entry.question_id))
 
 
 def handle_due(args: argparse.Namespace) -> int:
@@ -247,12 +247,16 @@ def handle_due(args: argparse.Namespace) -> int:
         random.Random(args.seed).shuffle(due_items)
         due_items.sort(key=lambda item: due_sort_key(item, args.last_domain))
 
+    total_due = len(due_items)
+
     if args.limit:
         due_items = due_items[: args.limit]
 
     payload = {
         "today": args.today,
+        "total_count": total_due,
         "count": len(due_items),
+        "limit": args.limit,
         "items": [item.to_dict() for item in due_items],
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))

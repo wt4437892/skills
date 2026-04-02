@@ -234,7 +234,13 @@ def handle_list(args: argparse.Namespace) -> int:
         cache = load_cache(notes_root, args.domain)
 
     if cache is None:
-        payload = {"domain": args.domain, "count": 0, "items": [], "source": "missing"}
+        payload = {
+            "domain": args.domain,
+            "count": 0,
+            "recorded_today_count": 0 if args.today else None,
+            "items": [],
+            "source": "missing",
+        }
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0
 
@@ -256,9 +262,14 @@ def handle_list(args: argparse.Namespace) -> int:
             ).to_list_dict()
         )
 
+    recorded_today_count = None
+    if args.today:
+        recorded_today_count = sum(1 for item in items if item["record_date"] == args.today)
+
     payload = {
         "domain": args.domain,
         "count": len(items),
+        "recorded_today_count": recorded_today_count,
         "items": items,
         "source": "cache",
     }
