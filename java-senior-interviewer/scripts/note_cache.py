@@ -103,7 +103,7 @@ def infer_record_date(note_path: Path, raw: str | None, prior_value: str | None 
         return raw.strip()
     if prior_value and prior_value.strip() and prior_value.strip() != "未知":
         return prior_value.strip()
-    return datetime.fromtimestamp(note_path.stat().st_mtime).strftime(DATE_FMT)
+    return "未知"
 
 
 def question_sort_key(question_id: str) -> tuple[int, str]:

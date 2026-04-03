@@ -422,20 +422,40 @@ def get_block(note_path: Path, question_id: str) -> QuestionBlock:
     raise SystemExit(f"Question not found: {note_path} {question_id}")
 
 
-def infer_record_date(note_path: Path, original_value: str | None) -> str:
+def load_prior_record_dates(domain_dir: Path) -> dict[tuple[str, str], str]:
+    prior_dates: dict[tuple[str, str], str] = {}
+    for item in load_cache_entries(domain_dir):
+        record_date = (item.record_date or "").strip()
+        if not record_date or record_date == "未知":
+            continue
+        prior_dates[(item.note_file, item.question_id)] = record_date
+    return prior_dates
+
+
+def infer_record_date(original_value: str | None, prior_value: str | None = None) -> str:
     if original_value and original_value.strip():
         return original_value.strip()
-    modified = datetime.fromtimestamp(note_path.stat().st_mtime).date()
-    return modified.strftime(DATE_FMT)
+    if prior_value and prior_value.strip() and prior_value.strip() != "未知":
+        return prior_value.strip()
+    return "未知"
 
 
-def item_from_block(domain_dir: Path, note_path: Path, block: QuestionBlock) -> ReviewItem:
+def item_from_block(
+    domain_dir: Path,
+    note_path: Path,
+    block: QuestionBlock,
+    prior_record_dates: dict[tuple[str, str], str] | None = None,
+) -> ReviewItem:
     metadata = block.metadata
+    prior_record_dates = prior_record_dates or {}
     return ReviewItem(
         domain=domain_dir.name,
         note_file=note_path.name,
         tags=parse_tags(metadata.get("标签", "")),
-        record_date=infer_record_date(note_path, metadata.get("记录日期", "")),
+        record_date=infer_record_date(
+            metadata.get("记录日期", ""),
+            prior_record_dates.get((note_path.name, block.question_id)),
+        ),
         next_review=metadata.get("下次复习", "未知") or "未知",
         last_review=metadata.get("上次复习", "-") or "-",
         review_count=normalize_count(metadata.get("复习次数", "0")),
@@ -447,13 +467,14 @@ def item_from_block(domain_dir: Path, note_path: Path, block: QuestionBlock) -> 
     )
 
 
-def scan_domain_notes(domain_dir: Path) -> list[ReviewItem]:
+def scan_domain_notes(domain_dir: Path, prior_record_dates: dict[tuple[str, str], str] | None = None) -> list[ReviewItem]:
     items: list[ReviewItem] = []
+    prior_record_dates = prior_record_dates or {}
     for note_path in sorted(domain_dir.glob("*.md")):
         if note_path.name == ".index.md":
             continue
         for block in parse_note_blocks(note_path):
-            items.append(item_from_block(domain_dir, note_path, block))
+            items.append(item_from_block(domain_dir, note_path, block, prior_record_dates))
 
     items.sort(key=lambda item: (item.note_file, question_sort_key(item.question_id)))
     return items
@@ -502,7 +523,7 @@ def write_index(domain_dir: Path, items: list[ReviewItem], updated_at: str) -> P
 
 
 def rebuild_domain(domain_dir: Path, updated_at: str) -> dict[str, object]:
-    items = scan_domain_notes(domain_dir)
+    items = scan_domain_notes(domain_dir, load_prior_record_dates(domain_dir))
     index_path = write_index(domain_dir, items, updated_at)
     cache_path = write_cache(domain_dir, items, updated_at)
     return {
@@ -553,7 +574,10 @@ def handle_show(args: argparse.Namespace) -> int:
         "question_id": block.question_id,
         "title": block.title,
         "metadata": {
-            "record_date": infer_record_date(note_path, block.metadata.get("记录日期", "")),
+            "record_date": infer_record_date(
+                block.metadata.get("记录日期", ""),
+                load_prior_record_dates(domain_dir).get((args.note_file, args.question_id)),
+            ),
             "next_review": block.metadata.get("下次复习", "未知"),
             "last_review": block.metadata.get("上次复习", "-"),
             "review_count": normalize_count(block.metadata.get("复习次数", "0")),
@@ -597,9 +621,16 @@ def strip_leading_metadata(body: str) -> str:
     return "\n".join(lines[index:]).strip("\n")
 
 
-def rebuild_block(block: QuestionBlock, note_path: Path, today_text: str, score: int | None, unknown: bool) -> tuple[str, dict[str, object]]:
+def rebuild_block(
+    block: QuestionBlock,
+    note_path: Path,
+    today_text: str,
+    score: int | None,
+    unknown: bool,
+    prior_record_date: str | None = None,
+) -> tuple[str, dict[str, object]]:
     today = datetime.strptime(today_text, DATE_FMT).date()
-    record_date = infer_record_date(note_path, block.metadata.get("记录日期"))
+    record_date = infer_record_date(block.metadata.get("记录日期"), prior_record_date)
     prior_count = normalize_count(block.metadata.get("复习次数", "0"))
     tags = parse_tags(block.metadata.get("标签", ""))
     review_count, next_review = compute_next_review(today, prior_count, score, unknown)
@@ -629,13 +660,20 @@ def rebuild_block(block: QuestionBlock, note_path: Path, today_text: str, score:
     return updated_block, payload
 
 
-def rewrite_note(note_path: Path, question_id: str, today_text: str, score: int | None, unknown: bool) -> dict[str, object]:
+def rewrite_note(
+    note_path: Path,
+    question_id: str,
+    today_text: str,
+    score: int | None,
+    unknown: bool,
+    prior_record_date: str | None = None,
+) -> dict[str, object]:
     text = note_path.read_text(encoding="utf-8")
     blocks = parse_note_blocks(note_path)
     for block in blocks:
         if block.question_id != question_id:
             continue
-        updated_block, payload = rebuild_block(block, note_path, today_text, score, unknown)
+        updated_block, payload = rebuild_block(block, note_path, today_text, score, unknown, prior_record_date)
         updated_text = text[: block.start] + updated_block + text[block.end :]
         note_path.write_text(updated_text, encoding="utf-8")
         return payload
@@ -649,8 +687,9 @@ def handle_update(args: argparse.Namespace) -> int:
     notes_root = Path(args.notes_root).resolve()
     domain_dir = notes_root / args.domain
     note_path = domain_dir / args.note_file
+    prior_record_date = load_prior_record_dates(domain_dir).get((args.note_file, args.question_id))
 
-    metadata = rewrite_note(note_path, args.question_id, args.today, args.score, args.unknown)
+    metadata = rewrite_note(note_path, args.question_id, args.today, args.score, args.unknown, prior_record_date)
     rebuild_domain(domain_dir, args.today)
     daily_tracker = update_daily_review_tracker_for_domain(notes_root, args.today, domain_dir)
 
