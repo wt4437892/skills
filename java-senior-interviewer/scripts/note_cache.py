@@ -13,6 +13,7 @@ QUESTION_RE = re.compile(r"^##\s*(Q\d+|Q)\s*[：:]\s*(.+?)\s*$", re.MULTILINE)
 NOTE_META_RE = re.compile(r"^\*\*(记录日期|下次复习|上次复习|复习次数|标签)\*\*[:：]\s*(.*?)\s*$")
 DATE_FMT = "%Y-%m-%d"
 CACHE_FILE_NAME = ".review-cache.json"
+DAILY_TRACKER_FILE_NAME = ".daily-question-count.json"
 
 
 @dataclass
@@ -59,6 +60,10 @@ class NoteItem:
         }
 
 
+def note_item_key(domain: str, note_file: str, question_id: str) -> str:
+    return f"{domain}/{note_file}#{question_id}"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build and query fast cache for java-senior-interviewer notes.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -93,9 +98,11 @@ def normalize_count(value: str) -> int:
         return 0
 
 
-def infer_record_date(note_path: Path, raw: str | None) -> str:
+def infer_record_date(note_path: Path, raw: str | None, prior_value: str | None = None) -> str:
     if raw and raw.strip():
         return raw.strip()
+    if prior_value and prior_value.strip() and prior_value.strip() != "未知":
+        return prior_value.strip()
     return datetime.fromtimestamp(note_path.stat().st_mtime).strftime(DATE_FMT)
 
 
@@ -129,8 +136,9 @@ def extract_answer_sections(body: str) -> tuple[str, str]:
     return answer, explanation
 
 
-def scan_domain(domain_dir: Path) -> list[NoteItem]:
+def scan_domain(domain_dir: Path, prior_record_dates: dict[tuple[str, str], str] | None = None) -> list[NoteItem]:
     items: list[NoteItem] = []
+    prior_record_dates = prior_record_dates or {}
     for note_path in sorted(domain_dir.glob("*.md")):
         if note_path.name == ".index.md":
             continue
@@ -149,7 +157,11 @@ def scan_domain(domain_dir: Path) -> list[NoteItem]:
                     question_id=match.group(1).strip(),
                     title=match.group(2).strip(),
                     tags=parse_tags(metadata.get("标签", "")),
-                    record_date=infer_record_date(note_path, metadata.get("记录日期")),
+                    record_date=infer_record_date(
+                        note_path,
+                        metadata.get("记录日期"),
+                        prior_record_dates.get((note_path.name, match.group(1).strip())),
+                    ),
                     next_review=metadata.get("下次复习", "未知") or "未知",
                     last_review=metadata.get("上次复习", "-") or "-",
                     review_count=normalize_count(metadata.get("复习次数", "0")),
@@ -200,14 +212,17 @@ def write_cache(notes_root: Path, domain_dir: Path, items: list[NoteItem], today
 
 def sync_domain(notes_root: Path, domain: str, today: str) -> dict[str, object]:
     domain_dir = notes_root / domain
-    items = scan_domain(domain_dir)
+    items = scan_domain(domain_dir, load_prior_record_dates(notes_root, domain))
     index_path = write_index(domain_dir, items, today)
     cache_path = write_cache(notes_root, domain_dir, items, today)
+    daily_tracker = update_daily_tracker_for_domain(notes_root, today, domain, items)
     return {
         "domain": domain,
         "count": len(items),
         "index_path": str(index_path),
         "cache_path": str(cache_path),
+        "daily_tracker_path": str(tracker_path_for(notes_root)),
+        "recorded_today_count": daily_tracker["count"],
     }
 
 
@@ -216,6 +231,143 @@ def load_cache(notes_root: Path, domain: str) -> dict[str, object] | None:
     if not cache_path.exists():
         return None
     return json.loads(cache_path.read_text(encoding="utf-8"))
+
+
+def load_prior_record_dates(notes_root: Path, domain: str) -> dict[tuple[str, str], str]:
+    cache = load_cache(notes_root, domain)
+    if cache is None:
+        return {}
+
+    prior_dates: dict[tuple[str, str], str] = {}
+    for item in cache.get("items", []):
+        note_file = item.get("note_file")
+        question_id = item.get("question_id")
+        record_date = (item.get("record_date") or "").strip()
+        if not note_file or not question_id or not record_date or record_date == "未知":
+            continue
+        prior_dates[(note_file, question_id)] = record_date
+    return prior_dates
+
+
+def discover_domains(notes_root: Path) -> list[Path]:
+    domain_dirs: list[Path] = []
+    for child in sorted(notes_root.iterdir()):
+        if not child.is_dir() or child.name.startswith("."):
+            continue
+        if (child / ".index.md").exists() or any(child.glob("*.md")):
+            domain_dirs.append(child)
+    return domain_dirs
+
+
+def tracker_path_for(notes_root: Path) -> Path:
+    return notes_root / DAILY_TRACKER_FILE_NAME
+
+
+def load_daily_tracker(notes_root: Path) -> dict[str, object] | None:
+    tracker_path = tracker_path_for(notes_root)
+    if not tracker_path.exists():
+        return None
+    return json.loads(tracker_path.read_text(encoding="utf-8"))
+
+
+def write_daily_tracker(notes_root: Path, payload: dict[str, object]) -> Path:
+    tracker_path = tracker_path_for(notes_root)
+    tracker_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return tracker_path
+
+
+def cache_items_to_note_items(domain: str, items: list[dict[str, object]]) -> list[NoteItem]:
+    return [
+        NoteItem(
+            domain=item.get("domain", domain),
+            note_file=item["note_file"],
+            question_id=item["question_id"],
+            title=item["title"],
+            tags=list(item.get("tags", [])),
+            record_date=item.get("record_date", "未知"),
+            next_review=item.get("next_review", "未知"),
+            last_review=item.get("last_review", "-"),
+            review_count=normalize_count(str(item.get("review_count", 0))),
+            answer=item.get("answer", ""),
+            explanation=item.get("explanation", ""),
+        )
+        for item in items
+    ]
+
+
+def collect_today_entries(notes_root: Path, today: str) -> list[dict[str, object]]:
+    entries: list[dict[str, object]] = []
+    for domain_dir in discover_domains(notes_root):
+        cache = load_cache(notes_root, domain_dir.name)
+        if cache is None:
+            items = scan_domain(domain_dir, load_prior_record_dates(notes_root, domain_dir.name))
+        else:
+            items = cache_items_to_note_items(domain_dir.name, list(cache.get("items", [])))
+
+        for item in items:
+            if item.record_date != today:
+                continue
+            entries.append(
+                {
+                    "key": note_item_key(item.domain, item.note_file, item.question_id),
+                    "domain": item.domain,
+                    "note_file": item.note_file,
+                    "question_id": item.question_id,
+                    "title": item.title,
+                    "record_date": item.record_date,
+                }
+            )
+    entries.sort(key=lambda item: str(item["key"]))
+    return entries
+
+
+def refresh_daily_tracker(notes_root: Path, today: str) -> dict[str, object]:
+    tracker = load_daily_tracker(notes_root)
+    tracker_path = tracker_path_for(notes_root)
+    if tracker is not None and tracker.get("today") == today:
+        return tracker
+
+    if tracker is not None and tracker_path.exists():
+        tracker_path.unlink()
+
+    items = collect_today_entries(notes_root, today)
+    payload = {
+        "today": today,
+        "count": len(items),
+        "items": items,
+    }
+    write_daily_tracker(notes_root, payload)
+    return payload
+
+
+def update_daily_tracker_for_domain(notes_root: Path, today: str, domain: str, items: list[NoteItem]) -> dict[str, object]:
+    tracker = refresh_daily_tracker(notes_root, today)
+    preserved_items = [item for item in tracker.get("items", []) if item.get("domain") != domain]
+
+    current_domain_items = [
+        {
+            "key": note_item_key(item.domain, item.note_file, item.question_id),
+            "domain": item.domain,
+            "note_file": item.note_file,
+            "question_id": item.question_id,
+            "title": item.title,
+            "record_date": item.record_date,
+        }
+        for item in items
+        if item.record_date == today
+    ]
+
+    merged: dict[str, dict[str, object]] = {}
+    for entry in preserved_items + current_domain_items:
+        merged[str(entry["key"])] = entry
+
+    payload = {
+        "today": today,
+        "count": len(merged),
+        "items": [merged[key] for key in sorted(merged)],
+    }
+    write_daily_tracker(notes_root, payload)
+    return payload
 
 
 def handle_sync(args: argparse.Namespace) -> int:
@@ -237,34 +389,21 @@ def handle_list(args: argparse.Namespace) -> int:
         payload = {
             "domain": args.domain,
             "count": 0,
-            "recorded_today_count": 0 if args.today else None,
+            "recorded_today_count": refresh_daily_tracker(notes_root, args.today)["count"] if args.today else None,
             "items": [],
             "source": "missing",
         }
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0
 
-    items = []
-    for item in cache.get("items", []):
-        items.append(
-            NoteItem(
-                domain=item.get("domain", args.domain),
-                note_file=item["note_file"],
-                question_id=item["question_id"],
-                title=item["title"],
-                tags=list(item.get("tags", [])),
-                record_date=item.get("record_date", "未知"),
-                next_review=item.get("next_review", "未知"),
-                last_review=item.get("last_review", "-"),
-                review_count=normalize_count(str(item.get("review_count", 0))),
-                answer=item.get("answer", ""),
-                explanation=item.get("explanation", ""),
-            ).to_list_dict()
-        )
+    items = [
+        item.to_list_dict()
+        for item in cache_items_to_note_items(args.domain, list(cache.get("items", [])))
+    ]
 
     recorded_today_count = None
     if args.today:
-        recorded_today_count = sum(1 for item in items if item["record_date"] == args.today)
+        recorded_today_count = refresh_daily_tracker(notes_root, args.today)["count"]
 
     payload = {
         "domain": args.domain,

@@ -23,6 +23,7 @@ INDEX_LINE_RE = re.compile(
 )
 DATE_FMT = "%Y-%m-%d"
 CACHE_FILE_NAME = ".review-cache.json"
+DAILY_REVIEW_TRACKER_FILE_NAME = ".daily-review-count.json"
 
 
 @dataclass
@@ -75,6 +76,10 @@ class QuestionBlock:
     metadata: dict[str, str]
     answer: str
     explanation: str
+
+
+def review_item_key(domain: str, note_file: str, question_id: str) -> str:
+    return f"{domain}/{note_file}#{question_id}"
 
 
 def parse_args() -> argparse.Namespace:
@@ -162,6 +167,10 @@ def cache_path_for(domain_dir: Path) -> Path:
     return domain_dir / CACHE_FILE_NAME
 
 
+def tracker_path_for(notes_root: Path) -> Path:
+    return notes_root / DAILY_REVIEW_TRACKER_FILE_NAME
+
+
 def load_index_entries(domain_dir: Path) -> list[ReviewItem]:
     index_path = domain_dir / ".index.md"
     if not index_path.exists():
@@ -223,6 +232,88 @@ def load_domain_entries(domain_dir: Path) -> list[ReviewItem]:
     return load_index_entries(domain_dir)
 
 
+def load_daily_review_tracker(notes_root: Path) -> dict[str, object] | None:
+    tracker_path = tracker_path_for(notes_root)
+    if not tracker_path.exists():
+        return None
+    return json.loads(tracker_path.read_text(encoding="utf-8"))
+
+
+def write_daily_review_tracker(notes_root: Path, payload: dict[str, object]) -> Path:
+    tracker_path = tracker_path_for(notes_root)
+    tracker_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return tracker_path
+
+
+def collect_today_review_entries(notes_root: Path, today: str) -> list[dict[str, object]]:
+    entries: list[dict[str, object]] = []
+    for domain_dir in discover_domains(notes_root, None):
+        for item in load_domain_entries(domain_dir):
+            if item.last_review != today:
+                continue
+            entries.append(
+                {
+                    "key": review_item_key(item.domain, item.note_file, item.question_id),
+                    "domain": item.domain,
+                    "note_file": item.note_file,
+                    "question_id": item.question_id,
+                    "title": item.title,
+                    "last_review": item.last_review,
+                }
+            )
+    entries.sort(key=lambda item: str(item["key"]))
+    return entries
+
+
+def refresh_daily_review_tracker(notes_root: Path, today: str) -> dict[str, object]:
+    tracker = load_daily_review_tracker(notes_root)
+    tracker_path = tracker_path_for(notes_root)
+    if tracker is not None and tracker.get("today") == today:
+        return tracker
+
+    if tracker is not None and tracker_path.exists():
+        tracker_path.unlink()
+
+    items = collect_today_review_entries(notes_root, today)
+    payload = {
+        "today": today,
+        "count": len(items),
+        "items": items,
+    }
+    write_daily_review_tracker(notes_root, payload)
+    return payload
+
+
+def update_daily_review_tracker_for_domain(notes_root: Path, today: str, domain_dir: Path) -> dict[str, object]:
+    tracker = refresh_daily_review_tracker(notes_root, today)
+    preserved_items = [item for item in tracker.get("items", []) if item.get("domain") != domain_dir.name]
+
+    current_domain_items = [
+        {
+            "key": review_item_key(item.domain, item.note_file, item.question_id),
+            "domain": item.domain,
+            "note_file": item.note_file,
+            "question_id": item.question_id,
+            "title": item.title,
+            "last_review": item.last_review,
+        }
+        for item in load_domain_entries(domain_dir)
+        if item.last_review == today
+    ]
+
+    merged: dict[str, dict[str, object]] = {}
+    for entry in preserved_items + current_domain_items:
+        merged[str(entry["key"])] = entry
+
+    payload = {
+        "today": today,
+        "count": len(merged),
+        "items": [merged[key] for key in sorted(merged)],
+    }
+    write_daily_review_tracker(notes_root, payload)
+    return payload
+
+
 def due_sort_key(entry: ReviewItem, last_domain: str | None) -> tuple[date, int, int, str, str, tuple[int, str]]:
     next_review = parse_date(entry.next_review) or date.min
     domain_penalty = 1 if last_domain and entry.domain == last_domain else 0
@@ -233,6 +324,8 @@ def handle_due(args: argparse.Namespace) -> int:
     notes_root = Path(args.notes_root).resolve()
     today = datetime.strptime(args.today, DATE_FMT).date()
     domain_dirs = discover_domains(notes_root, args.domains)
+    daily_tracker = refresh_daily_review_tracker(notes_root, args.today)
+    reviewed_today_count = int(daily_tracker.get("count", 0))
 
     due_items: list[ReviewItem] = []
     for domain_dir in domain_dirs:
@@ -249,14 +342,20 @@ def handle_due(args: argparse.Namespace) -> int:
 
     total_due = len(due_items)
 
-    if args.limit:
-        due_items = due_items[: args.limit]
+    requested_limit = args.limit
+    remaining_limit = None
+    if requested_limit:
+        remaining_limit = max(requested_limit - reviewed_today_count, 0)
+        due_items = due_items[:remaining_limit]
 
     payload = {
         "today": args.today,
+        "reviewed_today_count": reviewed_today_count,
         "total_count": total_due,
         "count": len(due_items),
-        "limit": args.limit,
+        "limit": remaining_limit,
+        "requested_limit": requested_limit,
+        "daily_tracker_path": str(tracker_path_for(notes_root)),
         "items": [item.to_dict() for item in due_items],
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
@@ -553,6 +652,7 @@ def handle_update(args: argparse.Namespace) -> int:
 
     metadata = rewrite_note(note_path, args.question_id, args.today, args.score, args.unknown)
     rebuild_domain(domain_dir, args.today)
+    daily_tracker = update_daily_review_tracker_for_domain(notes_root, args.today, domain_dir)
 
     payload = {
         "domain": args.domain,
@@ -560,6 +660,7 @@ def handle_update(args: argparse.Namespace) -> int:
         "note_path": str(note_path),
         "index_path": str(domain_dir / ".index.md"),
         "cache_path": str(cache_path_for(domain_dir)),
+        "daily_tracker_path": str(tracker_path_for(notes_root)),
         "question_id": metadata["question_id"],
         "title": metadata["title"],
         "record_date": metadata["record_date"],
@@ -567,6 +668,7 @@ def handle_update(args: argparse.Namespace) -> int:
         "last_review": metadata["last_review"],
         "review_count": metadata["review_count"],
         "tags": metadata["tags"],
+        "reviewed_today_count": daily_tracker["count"],
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0
