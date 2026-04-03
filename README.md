@@ -17,7 +17,7 @@ Current focus areas:
 | Skill | Description | Typical Use |
 |-------|-------------|-------------|
 | [git-resume-project-writer](./git-resume-project-writer/SKILL.md) | 从 Git 提交历史提炼适合面试简历的项目经历与项目亮点 | 根据仓库提交记录生成项目经历、亮点和面试表达 |
-| [java-senior-interviewer](./java-senior-interviewer/SKILL.md) | Java 资深面试新题训练：出新题、评分、讲解与笔记沉淀 | 针对 MySQL、Redis、JVM、Spring、并发、MQ、分布式、AI 编程等领域做新题训练 |
+| [java-senior-interviewer](./java-senior-interviewer/SKILL.md) | Java 资深面试新题训练：出新题、评分、讲解与笔记沉淀 | 针对 MySQL、Redis、JVM、Spring、并发、MQ、分布式等领域做新题训练 |
 | [java-senior-reviewer](./java-senior-reviewer/SKILL.md) | Java 历史题间隔复习：只抽今天到期题，复用笔记中的答案与讲解 | 基于历史笔记做今日到期间隔复习，并回写复习日期 |
 | [leetcode-note-taker](./leetcode-note-taker/SKILL.md) | 帮助创建和记录 LeetCode 算法题笔记，生成结构化题解 | 根据题目和思路生成结构化算法题笔记 |
 
