@@ -92,7 +92,7 @@ def parse_args() -> argparse.Namespace:
     due.add_argument("--domain", action="append", dest="domains")
     due.add_argument("--last-domain")
     due.add_argument("--limit", type=int, default=10)
-    due.add_argument("--seed", type=int, default=0)
+    due.add_argument("--seed", type=int, help="Optional random seed for reproducible tie-breaking.")
 
     show = subparsers.add_parser("show", help="Show answer/explanation for a single question.")
     show.add_argument("--notes-root", required=True)
@@ -314,10 +314,32 @@ def update_daily_review_tracker_for_domain(notes_root: Path, today: str, domain_
     return payload
 
 
-def due_sort_key(entry: ReviewItem, last_domain: str | None) -> tuple[date, int, int, str, str, tuple[int, str]]:
+def due_priority_key(entry: ReviewItem, last_domain: str | None) -> tuple[date, int, int]:
     next_review = parse_date(entry.next_review) or date.min
     domain_penalty = 1 if last_domain and entry.domain == last_domain else 0
-    return (next_review, entry.review_count, domain_penalty, entry.domain, entry.note_file, question_sort_key(entry.question_id))
+    return (next_review, entry.review_count, domain_penalty)
+
+
+def due_identity_key(entry: ReviewItem) -> tuple[str, str, tuple[int, str]]:
+    return (entry.domain, entry.note_file, question_sort_key(entry.question_id))
+
+
+def shuffle_tied_due_items(
+    due_items: list[ReviewItem],
+    last_domain: str | None,
+    rng: random.Random,
+) -> list[ReviewItem]:
+    grouped: dict[tuple[date, int, int], list[ReviewItem]] = {}
+    for item in due_items:
+        grouped.setdefault(due_priority_key(item, last_domain), []).append(item)
+
+    ordered: list[ReviewItem] = []
+    for priority in sorted(grouped):
+        group = sorted(grouped[priority], key=due_identity_key)
+        if len(group) > 1:
+            rng.shuffle(group)
+        ordered.extend(group)
+    return ordered
 
 
 def handle_due(args: argparse.Namespace) -> int:
@@ -334,11 +356,9 @@ def handle_due(args: argparse.Namespace) -> int:
             if entry.next_review == "未知" or next_review is None or next_review <= today:
                 due_items.append(entry)
 
-    due_items.sort(key=lambda item: due_sort_key(item, args.last_domain))
-
-    if args.seed and len(due_items) > 1:
-        random.Random(args.seed).shuffle(due_items)
-        due_items.sort(key=lambda item: due_sort_key(item, args.last_domain))
+    due_items.sort(key=lambda item: (due_priority_key(item, args.last_domain), due_identity_key(item)))
+    rng = random.Random(args.seed) if args.seed is not None else random.Random()
+    due_items = shuffle_tied_due_items(due_items, args.last_domain, rng)
 
     total_due = len(due_items)
 

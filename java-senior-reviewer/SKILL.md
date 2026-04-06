@@ -34,13 +34,21 @@ description: Java高级工程师复习官，基于历史笔记做间隔复习。
 若目标领域没有历史笔记或索引为空，直接提示：`当前没有可复习历史题，可以切到 java-senior-interviewer 走新题模式。`
 
 支持领域：
+- Java基础与集合
 - MySQL
 - Redis
 - JVM
-- Spring/SpringBoot
+- Spring与SpringBoot
 - 并发编程
 - 消息队列
 - 分布式
+- 微服务与服务治理
+- 系统设计
+- 线上排障与性能优化
+- 计算机基础
+
+目录命名约束：
+- 领域名必须使用单层目录安全命名，不要包含 `/` 或 `\`
 
 ## 快速路径
 
@@ -50,6 +58,12 @@ description: Java高级工程师复习官，基于历史笔记做间隔复习。
 
 ```powershell
 python java-senior-reviewer/scripts/review_index.py due --notes-root <笔记根目录> --today <yyyy-MM-dd> --limit 10
+```
+
+若想复现同一批并列题的顺序，可选追加：
+
+```powershell
+--seed 42
 ```
 
 若用户指定领域，则追加：
@@ -155,7 +169,7 @@ python java-senior-reviewer/scripts/review_index.py reindex --notes-root <笔记
    - `下次复习` 更早的优先
    - `复习次数` 更少的优先
    - 若用户未指定领域且存在“上一题所属领域”，优先选择不同领域
-   - 同优先级下再随机
+   - 同优先级下默认随机；若需要稳定复现，再显式传 `--seed`
 6. 排序后最多只取当天剩余额度内的题作为今日复习清单；若今天已复习 `N` 道，则最多再取 `10 - N` 道；若存在剩余到期题，告诉用户剩余数量，但默认不继续扩大今日题量
 7. 若今天没有到期题，则直接提示：`今天没有到期复习题，可以切到 java-senior-interviewer 的新题模式。` 并结束当前复习流程
 
