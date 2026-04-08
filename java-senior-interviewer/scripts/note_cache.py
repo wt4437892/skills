@@ -28,6 +28,7 @@ class NoteItem:
     last_review: str
     review_count: int
     answer: str
+    closing: str
     explanation: str
 
     def to_cache_dict(self, note_root: Path) -> dict[str, object]:
@@ -43,6 +44,7 @@ class NoteItem:
             "last_review": self.last_review,
             "review_count": self.review_count,
             "answer": self.answer,
+            "closing": self.closing,
             "explanation": self.explanation,
         }
 
@@ -122,18 +124,32 @@ def extract_metadata(body: str) -> dict[str, str]:
     return metadata
 
 
-def extract_answer_sections(body: str) -> tuple[str, str]:
+def extract_answer_sections(body: str) -> tuple[str, str, str]:
     answer_marker = "【答案】"
+    closing_marker = "【收口】"
     explanation_marker = "【讲解】"
     answer_index = body.find(answer_marker)
     if answer_index == -1:
-        return "", ""
+        return "", "", ""
+
+    closing_index = body.find(closing_marker, answer_index + len(answer_marker))
     explanation_index = body.find(explanation_marker, answer_index + len(answer_marker))
+
+    if closing_index == -1:
+        if explanation_index == -1:
+            return body[answer_index + len(answer_marker) :].strip(), "", ""
+        answer = body[answer_index + len(answer_marker) : explanation_index].strip()
+        explanation = body[explanation_index + len(explanation_marker) :].strip()
+        return answer, "", explanation
+
+    answer = body[answer_index + len(answer_marker) : closing_index].strip()
     if explanation_index == -1:
-        return body[answer_index + len(answer_marker) :].strip(), ""
-    answer = body[answer_index + len(answer_marker) : explanation_index].strip()
+        closing = body[closing_index + len(closing_marker) :].strip()
+        return answer, closing, ""
+
+    closing = body[closing_index + len(closing_marker) : explanation_index].strip()
     explanation = body[explanation_index + len(explanation_marker) :].strip()
-    return answer, explanation
+    return answer, closing, explanation
 
 
 def scan_domain(domain_dir: Path, prior_record_dates: dict[tuple[str, str], str] | None = None) -> list[NoteItem]:
@@ -149,7 +165,7 @@ def scan_domain(domain_dir: Path, prior_record_dates: dict[tuple[str, str], str]
             end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
             body = text[start:end]
             metadata = extract_metadata(body)
-            answer, explanation = extract_answer_sections(body)
+            answer, closing, explanation = extract_answer_sections(body)
             items.append(
                 NoteItem(
                     domain=domain_dir.name,
@@ -166,6 +182,7 @@ def scan_domain(domain_dir: Path, prior_record_dates: dict[tuple[str, str], str]
                     last_review=metadata.get("上次复习", "-") or "-",
                     review_count=normalize_count(metadata.get("复习次数", "0")),
                     answer=answer,
+                    closing=closing,
                     explanation=explanation,
                 )
             )
@@ -289,6 +306,7 @@ def cache_items_to_note_items(domain: str, items: list[dict[str, object]]) -> li
             last_review=item.get("last_review", "-"),
             review_count=normalize_count(str(item.get("review_count", 0))),
             answer=item.get("answer", ""),
+            closing=item.get("closing", ""),
             explanation=item.get("explanation", ""),
         )
         for item in items

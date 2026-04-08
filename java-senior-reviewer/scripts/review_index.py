@@ -39,6 +39,7 @@ class ReviewItem:
     title: str
     index_path: Path
     answer: str = ""
+    closing: str = ""
     explanation: str = ""
 
     @property
@@ -61,6 +62,7 @@ class ReviewItem:
         }
         if include_content:
             payload["answer"] = self.answer
+            payload["closing"] = self.closing
             payload["explanation"] = self.explanation
         return payload
 
@@ -75,6 +77,7 @@ class QuestionBlock:
     end: int
     metadata: dict[str, str]
     answer: str
+    closing: str
     explanation: str
 
 
@@ -219,6 +222,7 @@ def load_cache_entries(domain_dir: Path) -> list[ReviewItem]:
                 title=item["title"],
                 index_path=domain_dir / ".index.md",
                 answer=item.get("answer", ""),
+                closing=item.get("closing", ""),
                 explanation=item.get("explanation", ""),
             )
         )
@@ -392,7 +396,7 @@ def parse_note_blocks(note_path: Path) -> list[QuestionBlock]:
         end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
         body = text[match.end() : end]
         metadata = extract_note_metadata(body)
-        answer, explanation = extract_answer_sections(body)
+        answer, closing, explanation = extract_answer_sections(body)
         blocks.append(
             QuestionBlock(
                 question_id=match.group(1).strip(),
@@ -403,6 +407,7 @@ def parse_note_blocks(note_path: Path) -> list[QuestionBlock]:
                 end=end,
                 metadata=metadata,
                 answer=answer,
+                closing=closing,
                 explanation=explanation,
             )
         )
@@ -419,20 +424,32 @@ def extract_note_metadata(body: str) -> dict[str, str]:
     return metadata
 
 
-def extract_answer_sections(body: str) -> tuple[str, str]:
+def extract_answer_sections(body: str) -> tuple[str, str, str]:
     answer_marker = "【答案】"
+    closing_marker = "【收口】"
     explanation_marker = "【讲解】"
     answer_index = body.find(answer_marker)
     if answer_index == -1:
-        return "", ""
+        return "", "", ""
 
+    closing_index = body.find(closing_marker, answer_index + len(answer_marker))
     explanation_index = body.find(explanation_marker, answer_index + len(answer_marker))
-    if explanation_index == -1:
-        return body[answer_index + len(answer_marker) :].strip(), ""
+    if closing_index == -1:
+        if explanation_index == -1:
+            return body[answer_index + len(answer_marker) :].strip(), "", ""
 
-    answer = body[answer_index + len(answer_marker) : explanation_index].strip()
+        answer = body[answer_index + len(answer_marker) : explanation_index].strip()
+        explanation = body[explanation_index + len(explanation_marker) :].strip()
+        return answer, "", explanation
+
+    answer = body[answer_index + len(answer_marker) : closing_index].strip()
+    if explanation_index == -1:
+        closing = body[closing_index + len(closing_marker) :].strip()
+        return answer, closing, ""
+
+    closing = body[closing_index + len(closing_marker) : explanation_index].strip()
     explanation = body[explanation_index + len(explanation_marker) :].strip()
-    return answer, explanation
+    return answer, closing, explanation
 
 
 def get_block(note_path: Path, question_id: str) -> QuestionBlock:
@@ -483,6 +500,7 @@ def item_from_block(
         title=block.title,
         index_path=domain_dir / ".index.md",
         answer=block.answer,
+        closing=block.closing,
         explanation=block.explanation,
     )
 
@@ -579,6 +597,7 @@ def handle_show(args: argparse.Namespace) -> int:
                 "tags": item.tags,
             },
             "answer": item.answer,
+            "closing": item.closing,
             "explanation": item.explanation,
             "source": "cache",
         }
@@ -604,6 +623,7 @@ def handle_show(args: argparse.Namespace) -> int:
             "tags": parse_tags(block.metadata.get("标签", "")),
         },
         "answer": block.answer,
+        "closing": block.closing,
         "explanation": block.explanation,
         "source": "note",
     }
