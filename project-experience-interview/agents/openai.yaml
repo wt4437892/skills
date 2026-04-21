@@ -1,4 +1,4 @@
 interface:
   display_name: "项目经历面试助手"
-  short_description: "基于仓库提炼项目亮点、设计追问题并生成可信面试回答"
-  default_prompt: "使用 $project-experience-interview 基于当前项目仓库生成项目经历面试题，并为每道题给出可信、细节充分的示范答案。"
+  short_description: "先初始化项目上下文，再逐轮输出可信一题一答"
+  default_prompt: "使用 $project-experience-interview 先初始化当前项目，再通过每轮只输出一题一答的方式，帮我逐步生成可信的项目经历面试内容"
