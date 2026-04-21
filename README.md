@@ -20,7 +20,7 @@ Current focus areas:
 | [java-senior-interviewer](./java-senior-interviewer/SKILL.md) | Java 资深面试新题训练：出新题、评分、讲解与笔记沉淀 | 针对 MySQL、Redis、JVM、Spring、并发、消息队列、分布式等领域做新题训练 |
 | [java-senior-reviewer](./java-senior-reviewer/SKILL.md) | Java 历史题间隔复习：只抽今天到期题，复用笔记中的答案与讲解 | 基于历史笔记做今日到期间隔复习，并回写复习日期 |
 | [leetcode-note-taker](./leetcode-note-taker/SKILL.md) | 帮助创建和记录 LeetCode 算法题笔记，生成结构化题解 | 根据题目和思路生成结构化算法题笔记 |
-| [project-experience-interview](./project-experience-interview/SKILL.md) | 基于代码仓库提炼项目经历问题树、追问链路与可信回答 | 基于真实项目生成项目介绍、深挖题、追问题与候选人示范答案 |
+| [project-experience-interview](./project-experience-interview/SKILL.md) | 基于代码仓库提炼真实项目经历面试问答 | 基于真实项目生成面试官提问与候选人参考回答 |
 
 ## Java Skills Split
 
