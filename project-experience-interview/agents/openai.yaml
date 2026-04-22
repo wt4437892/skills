@@ -1,4 +1,4 @@
 interface:
   display_name: "项目经历面试助手"
   short_description: "优先复用当前会话项目上下文，再按真实面试场景输出一问一答"
-  default_prompt: "使用 $project-experience-interview 优先复用当前会话里已经建立的项目上下文或 /init 结果；如果上下文不足，再做最小初始化。随后按真实项目经历面试场景逐轮输出一问一答：题目站在面试官角度发问，答案符合面试官评估标准"
+  default_prompt: "使用 $project-experience-interview 优先复用当前会话里已经建立的项目上下文或 /init 结果；如果上下文不足，再做最小初始化。随后按真实项目经历面试场景逐轮输出一问一答：题目站在面试官角度发问，答案符合面试官评估标准。若用户要求记笔记或保存到 md，则复用最近一轮问答，优先读取已保存的输出目录配置并写入 Markdown 文件"
